@@ -1,48 +1,60 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware  # ✅ This line is mandatory
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import joblib, re
+from langdetect import detect, LangDetectException
+import joblib
 
-model = joblib.load("model.pkl")
-vectorizer = joblib.load("vectorizer.pkl")
-
+# Create FastAPI app
 app = FastAPI()
 
-# ✅ Add middleware immediately after app init
+# Enable CORS (you can restrict origins later)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For production, replace "*" with allowed domains
+    allow_origins=["*"],  # Change this to specific domains in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-class HFStyleRequest(BaseModel):
+# Load model and vectorizer
+model = joblib.load("model/logistic_model.pkl")
+vectorizer = joblib.load("model/vectorizer.pkl")
+
+# Input schema
+class InputText(BaseModel):
     inputs: str
 
-def preprocess(text):
-    stop_words = set([
-        'the', 'a', 'an', 'and', 'is', 'be', 'to', 'of', 'in', 'on', 'with',
-        'that', 'for', 'it', 'as', 'was', 'are', 'at', 'by', 'from'
-    ])
-    text = re.sub(r'[^\w\s]', '', text.lower())
-    tokens = [t for t in text.split() if t not in stop_words]
-    return " ".join(tokens)
-
-@app.post("/predict")
-def predict(data: HFStyleRequest):
-    clean_text = preprocess(data.inputs)
-    vec = vectorizer.transform([clean_text])
-    pred = model.predict(vec)[0]
-    conf = model.predict_proba(vec)[0][pred]
-    return {
-        "label": "fake" if pred == 1 else "real",
-        "confidence": round(float(conf), 4)
-    }
-
+# Root endpoint
 @app.get("/")
-def root():
+def read_root():
+    return {"message": "Welcome to the Fake News Detection API"}
+
+# Predict endpoint
+@app.post("/predict")
+def predict(item: InputText):
+    text = item.inputs.strip()
+
+    # Detect language
+    try:
+        language = detect(text)
+    except LangDetectException:
+        raise HTTPException(status_code=400, detail="Could not detect language. Try a longer input.")
+
+    if language != "en":
+        return {
+            "prediction": None,
+            "language": language,
+            "status": "non-english",
+            "message": "Model supports English language only."
+        }
+
+    # Perform prediction
+    vec = vectorizer.transform([text])
+    pred = model.predict(vec)[0]
+
     return {
-        "status": "API is live",
-        "message": "POST to /predict with { inputs: 'your text' }"
+        "prediction": bool(pred),
+        "language": language,
+        "status": "success",
+        "message": "Prediction successful."
     }
