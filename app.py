@@ -8,6 +8,15 @@ vectorizer = joblib.load("vectorizer.pkl")
 
 app = FastAPI()
 
+# ✅ CORS Middleware Setup (add this block right after app = FastAPI())
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # For dev use "*", for prod use specific domains
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 class HFStyleRequest(BaseModel):
     inputs: str  # Hugging Face-style
 
