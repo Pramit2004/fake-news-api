@@ -17,7 +17,7 @@ app.add_middleware(
 )
 
 # Load model and vectorizer
-model = joblib.load("model/logistic_model.pkl")
+model = joblib.load("model/model.pkl")
 vectorizer = joblib.load("model/vectorizer.pkl")
 
 # Input schema
