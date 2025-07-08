@@ -7,10 +7,10 @@ import joblib
 # Create FastAPI app
 app = FastAPI()
 
-# Enable CORS (you can restrict origins later)
+# Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Change this to specific domains in production
+    allow_origins=["*"],  # Change to your frontend domain in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -34,26 +34,33 @@ def read_root():
 def predict(item: InputText):
     text = item.inputs.strip()
 
-    # Detect language
+    # Language detection
     try:
         language = detect(text)
     except LangDetectException:
-        raise HTTPException(status_code=400, detail="Could not detect language. Try a longer input.")
+        raise HTTPException(
+            status_code=400,
+            detail="Could not detect language. Try a longer input."
+        )
 
     if language != "en":
         return {
             "prediction": None,
+            "confidence": None,
             "language": language,
             "status": "non-english",
             "message": "Model supports English language only."
         }
 
-    # Perform prediction
+    # Vectorize and predict
     vec = vectorizer.transform([text])
-    pred = model.predict(vec)[0]
+    proba = model.predict_proba(vec)[0]
+    confidence_fake = float(proba[1])  # Assuming class 1 = FAKE
+    label = "FAKE" if confidence_fake >= 0.5 else "REAL"
 
     return {
-        "prediction": bool(pred),
+        "prediction": label,
+        "confidence": round(confidence_fake, 4),
         "language": language,
         "status": "success",
         "message": "Prediction successful."
