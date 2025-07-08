@@ -1,24 +1,24 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware  # ✅ This line is mandatory
 from pydantic import BaseModel
 import joblib, re
 
-# Load model and vectorizer
 model = joblib.load("model.pkl")
 vectorizer = joblib.load("vectorizer.pkl")
 
 app = FastAPI()
 
-# ✅ CORS Middleware Setup (add this block right after app = FastAPI())
+# ✅ Add middleware immediately after app init
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For dev use "*", for prod use specific domains
+    allow_origins=["*"],  # For production, replace "*" with allowed domains
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 class HFStyleRequest(BaseModel):
-    inputs: str  # Hugging Face-style
+    inputs: str
 
 def preprocess(text):
     stop_words = set([
@@ -39,7 +39,10 @@ def predict(data: HFStyleRequest):
         "label": "fake" if pred == 1 else "real",
         "confidence": round(float(conf), 4)
     }
-    
+
 @app.get("/")
 def root():
-    return {"status": "API is live", "message": "POST to /predict with { inputs: 'your text' }"}
+    return {
+        "status": "API is live",
+        "message": "POST to /predict with { inputs: 'your text' }"
+    }
