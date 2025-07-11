@@ -51,6 +51,16 @@ def predict(item: InputText):
             "status": "non-english",
             "message": "Model supports English language only."
         }
+    
+    # ✅ FIXED: Proper indentation
+    if len(text.split()) < 10:
+        return {
+            "prediction": None,
+            "confidence": None,
+            "language": language,
+            "status": "too_short",
+            "message": "Input text too short for meaningful prediction."
+        }
 
     # Vectorize and predict
     vec = vectorizer.transform([text])
